@@ -24,14 +24,17 @@ func main() {
 
 	// User Routes
 	router.HandleFunc("POST /createUser", CreateUserHandler)
-
 	router.HandleFunc("POST /login", AuthorizeUserHandler)
+	router.HandleFunc("POST /getUser", GetUserHandler)
+	router.HandleFunc("POST /deleteUser", DeleteUserHandler)
+	router.HandleFunc("POST /updateUser", UpdateUserHandler)
+	
 
 	// Case Routes
+	router.HandleFunc("POST /createCase", CreateCaseHandler)
+	router.HandleFunc("POST /c", CaseFromIdHandler)
 
-	// Document Routes
-
-	// Chat Routes
+	
 
 	log.Println("Server started on :3000")
 	log.Fatal(http.ListenAndServe(":3000", router))
