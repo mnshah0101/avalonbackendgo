@@ -31,6 +31,7 @@ type Case struct {
 	SeedDoc           string `json:"seed_doc"`
 	SeedText          string `json:"seed_text"`
 	State             string `json:"state"`
+	UserID            string `json:"user_id"`
 }
 
 type Document struct {
