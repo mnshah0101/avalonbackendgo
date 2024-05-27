@@ -4,16 +4,16 @@ import (
 	"encoding/json"
 	"io"
 	"log"
-
 	"net/http"
+	
 )
 
-func CreateCaseHandler(w http.ResponseWriter, r *http.Request) {
-	var myCase Case
+func GetDocumentsByCaseHandler(w http.ResponseWriter, r *http.Request) {
+	// read the request body
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		response := ErrorResponse{
-			Message: "Failed to create case",
+			Message: "Failed to get documents",
 			Status:  http.StatusInternalServerError,
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -22,7 +22,12 @@ func CreateCaseHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := json.Unmarshal(body, &myCase); err != nil {
+	// unmarshal the request body
+	var getDocsByCaseIdRequest struct {
+		CaseID string `json:"case_id"`
+	}
+
+	if err := json.Unmarshal(body, &getDocsByCaseIdRequest); err != nil {
 		log.Printf("Error unmarshalling request body: %v", err)
 		response := ErrorResponse{
 			Message: "Failed to read request body",
@@ -34,93 +39,10 @@ func CreateCaseHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Case: %+v", myCase)
-
-	// check if no fields are blank
-	if myCase.CaseTitle == "" || myCase.AttorneyFirstName == "" || myCase.AttorneyLastName == "" || myCase.BucketName == "" || myCase.CaseInfo == "" || myCase.CaseType == "" || myCase.City == "" || myCase.Date == "" || myCase.JudgeName == "" || myCase.SeedDoc == "" || myCase.SeedText == "" || myCase.State == "" || myCase.UserID == "" {
-		response := ErrorResponse{
-			Message: "All fields must be filled out",
-			Status:  http.StatusBadRequest,
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-
+	// get case object
 	var return_case Case
-	return_case, err = CreateCase(myCase)
+	return_case, err = GetCaseFromId(getDocsByCaseIdRequest.CaseID)
 	if err != nil {
-		log.Printf("Error creating case: %v", err)
-		response := ErrorResponse{
-			Message: "Failed to create case",
-			Status:  http.StatusInternalServerError,
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-
-	// create chat object for case
-	err = CreateChat(return_case.ID, return_case.UserID)
-	if err != nil {
-		log.Printf("Error creating chat: %v", err)
-		response := ErrorResponse{
-			Message: "Failed to create chat",
-			Status:  http.StatusInternalServerError,
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-
-	// return case
-	response := SuccessResponse{
-		Message: "Case created successfully",
-		Status:  http.StatusCreated,
-		Object:  return_case,
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
-}
-
-func GetCaseByIDHandler(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		response := ErrorResponse{
-			Message: "Failed to get case",
-			Status:  http.StatusInternalServerError,
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-
-	var getCaseByIDRequest struct {
-		ID string `json:"_id"`
-	}
-
-	if err := json.Unmarshal(body, &getCaseByIDRequest); err != nil {
-		log.Printf("Error unmarshalling request body: %v", err)
-		response := ErrorResponse{
-			Message: "Failed to read request body",
-			Status:  http.StatusBadRequest,
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(response)
-		return
-
-	}
-
-	var return_case Case
-	return_case, err = GetCaseFromId(getCaseByIDRequest.ID)
-	if err != nil {
-		log.Printf("Error getting case: %v", err)
 		response := ErrorResponse{
 			Message: "Failed to get case",
 			Status:  http.StatusInternalServerError,
@@ -143,23 +65,12 @@ func GetCaseByIDHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// return case
-	response := SuccessResponse{
-		Message: "Case retrieved successfully",
-		Status:  http.StatusOK,
-		Object:  return_case,
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
-
-}
-
-func GetCaseByUserHandler(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
+	// get documents by case id
+	var documents []Document
+	documents, err = GetDocumentsByCaseId(getDocsByCaseIdRequest.CaseID)
 	if err != nil {
 		response := ErrorResponse{
-			Message: "Failed to get case",
+			Message: "Failed to get documents",
 			Status:  http.StatusInternalServerError,
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -168,11 +79,37 @@ func GetCaseByUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var getCaseByUserRequest struct {
-		UserID string `json:"user_id"`
+	response := SuccessResponse{
+		Message: "Documents retrieved successfully",
+		Status:  http.StatusOK,
+		Object:  documents,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+
+}
+
+func GetDocumentByIDHandler(w http.ResponseWriter, r *http.Request) {
+	// read the request body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		response := ErrorResponse{
+			Message: "Failed to get document",
+			Status:  http.StatusInternalServerError,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(response)
+		return
 	}
 
-	if err := json.Unmarshal(body, &getCaseByUserRequest); err != nil {
+	// unmarshal the request body
+	var getDocByIdRequest struct {
+		ID string `json:"_id"`
+	}
+
+	if err := json.Unmarshal(body, &getDocByIdRequest); err != nil {
 		log.Printf("Error unmarshalling request body: %v", err)
 		response := ErrorResponse{
 			Message: "Failed to read request body",
@@ -184,12 +121,12 @@ func GetCaseByUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var return_user User
-	return_user, err = getUserFromId(getCaseByUserRequest.UserID)
+	// get document by id
+	var document Document
+	document, err = GetDocumentById(getDocByIdRequest.ID)
 	if err != nil {
-		log.Printf("Error getting user: %v", err)
 		response := ErrorResponse{
-			Message: "Failed to get user",
+			Message: "Failed to get document",
 			Status:  http.StatusInternalServerError,
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -198,9 +135,10 @@ func GetCaseByUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if return_user.ID == "" {
+	// check if document exists
+	if document.ID == "" {
 		response := ErrorResponse{
-			Message: "User not found",
+			Message: "Document not found",
 			Status:  http.StatusNotFound,
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -209,24 +147,11 @@ func GetCaseByUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var return_cases []Case
-	return_cases, err = GetCasesByUserId(getCaseByUserRequest.UserID)
-	if err != nil {
-		log.Printf("Error getting case: %v", err)
-		response := ErrorResponse{
-			Message: "Failed to get case",
-			Status:  http.StatusInternalServerError,
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-
+	// return document
 	response := SuccessResponse{
-		Message: "Case retrieved successfully",
+		Message: "Document retrieved successfully",
 		Status:  http.StatusOK,
-		Object:  return_cases,
+		Object:  document,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -234,12 +159,12 @@ func GetCaseByUserHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func DeleteCaseByIDHandler(w http.ResponseWriter, r *http.Request) {
-	// read request body
+func DeleteDocumentByIDHandler(w http.ResponseWriter, r *http.Request) {
+	// read the request body
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		response := ErrorResponse{
-			Message: "Failed to delete case",
+			Message: "Failed to delete document",
 			Status:  http.StatusInternalServerError,
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -248,12 +173,12 @@ func DeleteCaseByIDHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var deleteCaseByIdRequest struct {
+	// unmarshal the request body
+	var deleteDocByIdRequest struct {
 		ID string `json:"_id"`
 	}
 
-	// unmarshal request body
-	if err := json.Unmarshal(body, &deleteCaseByIdRequest); err != nil {
+	if err := json.Unmarshal(body, &deleteDocByIdRequest); err != nil {
 		log.Printf("Error unmarshalling request body: %v", err)
 		response := ErrorResponse{
 			Message: "Failed to read request body",
@@ -265,13 +190,93 @@ func DeleteCaseByIDHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// delete case
-	var return_case Case
-	return_case, err = DeleteCaseById(deleteCaseByIdRequest.ID)
+	// get document by id
+	var document Document
+	document, err = GetDocumentById(deleteDocByIdRequest.ID)
 	if err != nil {
-		log.Printf("Error deleting case: %v", err)
 		response := ErrorResponse{
-			Message: "Failed to delete case",
+			Message: "Failed to get document",
+			Status:  http.StatusInternalServerError,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// check if document exists
+	if document.ID == "" {
+		response := ErrorResponse{
+			Message: "Document not found",
+			Status:  http.StatusNotFound,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// delete document by id
+	err = DeleteDocumentById(deleteDocByIdRequest.ID)
+	if err != nil {
+		response := ErrorResponse{
+			Message: "Failed to delete document",
+			Status:  http.StatusInternalServerError,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	response := SuccessResponse{
+		Message: "Document deleted successfully",
+		Status:  http.StatusOK,
+		Object:  document,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+
+}
+
+func DeleteDocumentsByCaseHandler(w http.ResponseWriter, r *http.Request) {
+	// read the request body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		response := ErrorResponse{
+			Message: "Failed to delete documents",
+			Status:  http.StatusInternalServerError,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// unmarshal the request body
+	var deleteDocsByCaseRequest struct {
+		CaseID string `json:"case_id"`
+	}
+
+	if err := json.Unmarshal(body, &deleteDocsByCaseRequest); err != nil {
+		log.Printf("Error unmarshalling request body: %v", err)
+		response := ErrorResponse{
+			Message: "Failed to read request body",
+			Status:  http.StatusBadRequest,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// get case from caseid
+	var return_case Case
+	return_case, err = GetCaseFromId(deleteDocsByCaseRequest.CaseID)
+	if err != nil {
+		response := ErrorResponse{
+			Message: "Failed to get case",
 			Status:  http.StatusInternalServerError,
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -292,23 +297,50 @@ func DeleteCaseByIDHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// return case
+	// delete documents by case id
+	var documents []Document
+	documents, err = DeleteDocumentsByCaseId(deleteDocsByCaseRequest.CaseID)
+	if err != nil {
+		response := ErrorResponse{
+			Message: "Failed to delete documents",
+			Status:  http.StatusInternalServerError,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
 	response := SuccessResponse{
-		Message: "Case deleted successfully",
+		Message: "Documents deleted successfully",
 		Status:  http.StatusOK,
-		Object:  return_case,
+		Object:  documents,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
 
-func DeleteCasesByUserHandler(w http.ResponseWriter, r *http.Request) {
-	// read request body
-	body, err := io.ReadAll(r.Body)
+func UploadDocumentHandler(w http.ResponseWriter, r *http.Request) {
+	file, header, err := r.FormFile("file")
+
 	if err != nil {
 		response := ErrorResponse{
-			Message: "Failed to delete case",
+			Message: "Failed to read file",
+			Status:  http.StatusInternalServerError,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(response)
+		return
+
+	}
+	defer file.Close()
+
+	fileContent, err := io.ReadAll(file )
+	if err != nil {
+		response := ErrorResponse{
+			Message: "Failed to read file",
 			Status:  http.StatusInternalServerError,
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -317,30 +349,24 @@ func DeleteCasesByUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var deleteCasesByUserRequest struct {
-		UserID string `json:"user_id"`
-	}
-
-	// unmarshal request body
-	if err := json.Unmarshal(body, &deleteCasesByUserRequest); err != nil {
-		log.Printf("Error unmarshalling request body: %v", err)
+	_, err = file.Seek(0, 0)
+	if err != nil {
 		response := ErrorResponse{
-			Message: "Failed to read request body",
-			Status:  http.StatusBadRequest,
+
+
+			Message: "Failed to read file",
+			Status:  http.StatusInternalServerError,
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(response)
 		return
 	}
-
-	// get user
-	var return_user User
-	return_user, err = getUserFromId(deleteCasesByUserRequest.UserID)
+	
+	err = uploadFileToS3(header.Filename, fileContent)
 	if err != nil {
-		log.Printf("Error getting user: %v", err)
 		response := ErrorResponse{
-			Message: "Failed to get user",
+			Message: "Failed to read file",
 			Status:  http.StatusInternalServerError,
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -349,50 +375,9 @@ func DeleteCasesByUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// check if user exists
-	if return_user.ID == "" {
-		response := ErrorResponse{
-			Message: "User not found",
-			Status:  http.StatusNotFound,
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-
-	// delete case
-	var return_cases []Case
-	return_cases, err = DeleteCasesByUser(return_user.ID)
-	if err != nil {
-		log.Printf("Error deleting case: %v", err)
-		response := ErrorResponse{
-			Message: "Failed to delete case",
-			Status:  http.StatusInternalServerError,
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-
-	// check if cases exist
-	if len(return_cases) == 0 {
-		response := ErrorResponse{
-			Message: "User has no cases to be deleted",
-			Status:  http.StatusNotFound,
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-
-	// return cases
 	response := SuccessResponse{
-		Message: "Cases deleted successfully",
+		Message: "File uploaded successfully",
 		Status:  http.StatusOK,
-		Object:  return_cases,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
