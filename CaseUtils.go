@@ -189,9 +189,17 @@ func GetCasesByUserId(user_id string) ([]Case, error) {
 
 }
 
-func DeleteCaseById(caseID string) error {
+func DeleteCaseById(caseID string) (Case, error) {
+	myCase, err := GetCaseFromId(caseID)
+	if err != nil {
+		return Case{}, err
+	}
 
-	_, err := dynamo.DeleteItem(&dynamodb.DeleteItemInput{
+	if myCase.ID == "" {
+		return Case{}, nil
+	}
+
+	_, err = dynamo.DeleteItem(&dynamodb.DeleteItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
 			"_id": {
 				S: aws.String(caseID),
@@ -200,5 +208,32 @@ func DeleteCaseById(caseID string) error {
 		TableName: &CasesTable,
 	})
 
-	return err
+	return myCase, err
+}
+
+func DeleteCasesByUser(user_id string) ([]Case, error) {
+	cases, err := GetCasesByUserId(user_id)
+	if err != nil {
+		return []Case{}, err
+	}
+
+	if len(cases) == 0 {
+		return []Case{}, nil
+	}
+
+	for _, c := range cases {
+		_, err = dynamo.DeleteItem(&dynamodb.DeleteItemInput{
+			Key: map[string]*dynamodb.AttributeValue{
+				"_id": {
+					S: aws.String(c.ID),
+				},
+			},
+			TableName: &CasesTable,
+		})
+		if err != nil {
+			return []Case{}, err
+		}
+	}
+
+	return cases, nil
 }

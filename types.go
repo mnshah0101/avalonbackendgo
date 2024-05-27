@@ -46,16 +46,15 @@ type Document struct {
 
 type Chat struct {
 	ID           string    `json:"_id"`
-	CaseID       string    `json:"case_id"`
 	Messages     []Message `json:"messages"`
 	SelectedDocs []string  `json:"selected_docs"`
 	UserID       string    `json:"user_id"`
 }
 
 type Message struct {
-	ID     string `json:"_id"`
-	Text   string `json:"text"`
-	Sender string `json:"sender"`
+	Text      string `json:"text"`
+	Sender    string `json:"sender"`
+	Timestamp string `json:"timestamp"`
 }
 
 type ErrorResponse struct {
