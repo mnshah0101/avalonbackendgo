@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"log"
 	"strconv"
+
+	"fmt"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"bytes"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
@@ -45,7 +48,7 @@ func GetDocumentsByCaseId(caseID string) ([]Document, error) {
 
 		doc := Document{
 			ID:        *i["_id"].S,
-			FileNames: *i["file_name"].S,
+			FileName:  *i["file_name"].S,
 			CaseID:    *i["case"].S,
 			Date:      *i["date"].S,
 			FileURL:   *i["file_url"].S,
@@ -95,7 +98,7 @@ func GetDocumentById(documentID string) (Document, error) {
 
 	doc := Document{
 		ID:        *result.Items[0]["_id"].S,
-		FileNames: *result.Items[0]["file_name"].S,
+		FileName:  *result.Items[0]["file_name"].S,
 		CaseID:    *result.Items[0]["case"].S,
 		Date:      *result.Items[0]["date"].S,
 		FileURL:   *result.Items[0]["file_url"].S,
@@ -135,16 +138,53 @@ func DeleteDocumentsByCaseId(caseID string) ([]Document, error) {
 	return documents, nil
 }
 
-
-
-
-func uploadFileToS3(fileName string, fileContent []byte) error {
+func UploadFileToS3(fileName string, fileContent []byte) (string, error) {
 	input := &s3.PutObjectInput{
-		Bucket:  &Bucket,
+		Bucket: &Bucket,
 		Key:    aws.String(fileName),
 		Body:   aws.ReadSeekCloser(bytes.NewReader(fileContent)),
 	}
 
 	_, err := s3Client.PutObject(input)
+
+	s3URL := fmt.Sprintf("https://%s.s3.amazonaws.com/%s", Bucket, fileName)
+
+	return s3URL, err
+}
+
+func UploadDocumentDynamo(document Document) error {
+
+	fmt.Println(document)
+
+	input := &dynamodb.PutItemInput{
+		Item: map[string]*dynamodb.AttributeValue{
+			"_id": {
+				S: aws.String(document.ID),
+			},
+			"case": {
+				S: aws.String(document.CaseID),
+			},
+			"date": {
+				S: aws.String(document.Date),
+			},
+			"file_name": {
+				S: aws.String(document.FileName),
+			},
+			"file_url": {
+				S: aws.String(document.FileURL),
+			},
+			"relevancy": {
+				N: aws.String(strconv.FormatFloat(document.Relevancy, 'f', -1, 64)),
+			},
+			"stored": {
+				BOOL: aws.Bool(document.Stored),
+			},
+		},
+
+		TableName: &DocumentsTable,
+	}
+
+	_, err := dynamo.PutItem(input)
+
 	return err
 }

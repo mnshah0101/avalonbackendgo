@@ -3,8 +3,6 @@ package main
 import (
 	"log"
 	"net/http"
-
-
 )
 
 var (
@@ -15,7 +13,6 @@ var (
 	RegionName     = "us-east-1"
 	Bucket         = "avaloncasesbucket"
 )
-
 
 func init() {
 	dynamo = InitDynamoDBTClient()
@@ -42,23 +39,15 @@ func main() {
 
 	// Document Routes
 	router.HandleFunc("POST /uploadDocument", UploadDocumentHandler)
+	router.HandleFunc("POST /uploadDocuments", UploadDocumentsHandler)
 	router.HandleFunc("POST /getCaseDocuments", GetDocumentsByCaseHandler)
 	router.HandleFunc("POST /getDocumentById", GetDocumentByIDHandler)
 	router.HandleFunc("POST /deleteDocumentById", DeleteDocumentByIDHandler)
 	router.HandleFunc("POST /deleteCaseDocuments", DeleteDocumentsByCaseHandler)
+	router.HandleFunc("POST /createDocuments", CreateDocumentsHandler)
 
-	// endpoints to be done
-	// upload document
-	// delete all docs by user
-
-	// Chat Routes
 	router.HandleFunc("POST /getCaseChat", GetChatByCaseIDHandler) // the case_id and chat id are the same
 	router.HandleFunc("POST /addMessage", AddMessageToChatHandler)
-
-	//endpoints to be done
-	// delete by chat id
-	// delete by user id
-	// MAKE SURE CHAT IS BEING CREATED WHEN CASE IS CREATED
 
 	log.Println("Server started on :3000")
 	log.Fatal(http.ListenAndServe(":3000", router))

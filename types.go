@@ -36,7 +36,7 @@ type Case struct {
 
 type Document struct {
 	ID        string  `json:"_id"`
-	FileNames string  `json:"file_name"`
+	FileName  string  `json:"file_name"`
 	CaseID    string  `json:"case"`
 	Date      string  `json:"date"`
 	FileURL   string  `json:"file_url"`

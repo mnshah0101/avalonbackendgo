@@ -5,8 +5,17 @@ import (
 	"io"
 	"log"
 	"net/http"
-	
+	"strings"
+	"time"
 )
+
+func RemoveSpacesAndColons(input string) string {
+	input = strings.ReplaceAll(input, " ", "")
+	input = strings.ReplaceAll(input, ":", "")
+	input = strings.ReplaceAll(input, ".", "")
+	return input
+
+}
 
 func GetDocumentsByCaseHandler(w http.ResponseWriter, r *http.Request) {
 	// read the request body
@@ -322,8 +331,21 @@ func DeleteDocumentsByCaseHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func UploadDocumentHandler(w http.ResponseWriter, r *http.Request) {
-	file, header, err := r.FormFile("file")
 
+	caseID := r.FormValue("case_id")
+
+	if caseID == "" {
+		response := ErrorResponse{
+			Message: "Case ID is required",
+			Status:  http.StatusBadRequest,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	file, header, err := r.FormFile("file")
 	if err != nil {
 		response := ErrorResponse{
 			Message: "Failed to read file",
@@ -333,14 +355,14 @@ func UploadDocumentHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(response)
 		return
-
 	}
 	defer file.Close()
 
-	fileContent, err := io.ReadAll(file )
+	// Read file content
+	fileContent, err := io.ReadAll(file)
 	if err != nil {
 		response := ErrorResponse{
-			Message: "Failed to read file",
+			Message: "Failed to read file content",
 			Status:  http.StatusInternalServerError,
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -349,24 +371,14 @@ func UploadDocumentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = file.Seek(0, 0)
+	fileName := caseID + "/" + header.Filename
+
+	fileName = RemoveSpacesAndColons(fileName)
+
+	file_url, err := UploadFileToS3(fileName, fileContent)
 	if err != nil {
 		response := ErrorResponse{
-
-
-			Message: "Failed to read file",
-			Status:  http.StatusInternalServerError,
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-	
-	err = uploadFileToS3(header.Filename, fileContent)
-	if err != nil {
-		response := ErrorResponse{
-			Message: "Failed to read file",
+			Message: "Failed to upload file to S3",
 			Status:  http.StatusInternalServerError,
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -378,7 +390,197 @@ func UploadDocumentHandler(w http.ResponseWriter, r *http.Request) {
 	response := SuccessResponse{
 		Message: "File uploaded successfully",
 		Status:  http.StatusOK,
+		Object:  file_url,
 	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+func UploadDocumentsHandler(w http.ResponseWriter, r *http.Request) {
+
+	caseID := r.FormValue("case_id")
+	if caseID == "" {
+		response := ErrorResponse{
+			Message: "Case ID is required",
+			Status:  http.StatusBadRequest,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	files := r.MultipartForm.File["files"]
+
+	var uploadedFiles []string
+
+	for _, header := range files {
+		file, err := header.Open()
+		if err != nil {
+			response := ErrorResponse{
+				Message: "Failed to read file",
+				Status:  http.StatusInternalServerError,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+		defer file.Close()
+
+		// Read file content
+		fileContent, err := io.ReadAll(file)
+		if err != nil {
+			response := ErrorResponse{
+				Message: "Failed to read file content",
+				Status:  http.StatusInternalServerError,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		time_now := time.Now().Truncate(0).String()
+
+		fileName := caseID + "/" + time_now + header.Filename
+
+		fileName = RemoveSpacesAndColons(fileName)
+
+		file_url, err := UploadFileToS3(fileName, fileContent)
+		if err != nil {
+			response := ErrorResponse{
+				Message: "Failed to upload file to S3",
+				Status:  http.StatusInternalServerError,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		uploadedFiles = append(uploadedFiles, file_url)
+	}
+
+	response := SuccessResponse{
+		Message: "Files uploaded successfully",
+		Status:  http.StatusOK,
+		Object:  uploadedFiles,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+func CreateDocumentsHandler(w http.ResponseWriter, r *http.Request) {
+
+	caseID := r.FormValue("case_id")
+
+	if caseID == "" {
+		response := ErrorResponse{
+			Message: "Case ID is required",
+			Status:  http.StatusBadRequest,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	files := r.MultipartForm.File["files"]
+
+	var documents []Document
+
+	for _, header := range files {
+		file, err := header.Open()
+		if err != nil {
+			response := ErrorResponse{
+				Message: "Failed to read file",
+				Status:  http.StatusInternalServerError,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+		defer file.Close()
+
+		// Read file content
+		fileContent, err := io.ReadAll(file)
+		if err != nil {
+			response := ErrorResponse{
+				Message: "Failed to read file content",
+				Status:  http.StatusInternalServerError,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+		time_now := time.Now().Truncate(0).String()
+
+		fileName := caseID + "/" + time_now + header.Filename
+
+		fileName = RemoveSpacesAndColons(fileName)
+
+		file_url, err := UploadFileToS3(fileName, fileContent)
+
+		if err != nil {
+			response := ErrorResponse{
+				Message: "Failed to upload file to S3",
+				Status:  http.StatusInternalServerError,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		document := Document{
+			ID:        generateRandomString(16),
+			FileName:  fileName,
+			CaseID:    caseID,
+			Date:      time_now,
+			FileURL:   file_url,
+			Relevancy: 0.0,
+			Stored:    false,
+		}
+
+		//print the document fields
+
+		log.Printf("Document ID: %s", document.ID)
+		log.Printf("Document File Name: %s", document.FileName)
+		log.Printf("Document Case ID: %s", document.CaseID)
+		log.Printf("Document Date: %s", document.Date)
+		log.Printf("Document File URL: %s", document.FileURL)
+		log.Printf("Document Relevancy: %f", document.Relevancy)
+		log.Printf("Document Stored: %t", document.Stored)
+
+		documents = append(documents, document)
+
+		err = UploadDocumentDynamo(document)
+
+		if err != nil {
+			response := ErrorResponse{
+				Message: "Failed to upload document to DynamoDB",
+				Status:  http.StatusInternalServerError,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+	}
+
+	response := SuccessResponse{
+
+		Message: "Documents created successfully",
+		Status:  http.StatusOK,
+		Object:  documents,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
