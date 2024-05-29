@@ -11,8 +11,6 @@ import (
 
 func CreateCase(myCase Case) (Case, error) {
 
-	log.Printf("Case: %+v", myCase)
-
 	case_id := generateRandomString(16)
 	myCase.ID = case_id
 
@@ -30,9 +28,7 @@ func CreateCase(myCase Case) (Case, error) {
 			"attorney_last_name": {
 				S: aws.String(myCase.AttorneyLastName),
 			},
-			"bucket_name": {
-				S: aws.String(myCase.BucketName),
-			},
+
 			"case_info": {
 				S: aws.String(myCase.CaseInfo),
 			},
@@ -51,12 +47,7 @@ func CreateCase(myCase Case) (Case, error) {
 			"number_files": {
 				N: aws.String(strconv.Itoa(myCase.NumberFiles)),
 			},
-			"seed_doc": {
-				S: aws.String(myCase.SeedDoc),
-			},
-			"seed_text": {
-				S: aws.String(myCase.SeedText),
-			},
+
 			"state": {
 				S: aws.String(myCase.State),
 			},
@@ -115,15 +106,12 @@ func GetCaseFromId(caseID string) (Case, error) {
 		CaseTitle:         *ult["case_title"].S,
 		AttorneyFirstName: *ult["attorney_first_name"].S,
 		AttorneyLastName:  *ult["attorney_last_name"].S,
-		BucketName:        *ult["bucket_name"].S,
 		CaseInfo:          *ult["case_info"].S,
 		CaseType:          *ult["case_type"].S,
 		City:              *ult["city"].S,
 		Date:              *ult["date"].S,
 		JudgeName:         *ult["judge_name"].S,
 		NumberFiles:       numberFiles,
-		SeedDoc:           *ult["seed_doc"].S,
-		SeedText:          *ult["seed_text"].S,
 		State:             *ult["state"].S,
 		UserID:            *ult["user_id"].S,
 	}
@@ -170,15 +158,12 @@ func GetCasesByUserId(user_id string) ([]Case, error) {
 			CaseTitle:         *i["case_title"].S,
 			AttorneyFirstName: *i["attorney_first_name"].S,
 			AttorneyLastName:  *i["attorney_last_name"].S,
-			BucketName:        *i["bucket_name"].S,
 			CaseInfo:          *i["case_info"].S,
 			CaseType:          *i["case_type"].S,
 			City:              *i["city"].S,
 			Date:              *i["date"].S,
 			JudgeName:         *i["judge_name"].S,
 			NumberFiles:       numberFiles,
-			SeedDoc:           *i["seed_doc"].S,
-			SeedText:          *i["seed_text"].S,
 			State:             *i["state"].S,
 			UserID:            *i["user_id"].S,
 		}
@@ -239,4 +224,27 @@ func DeleteCasesByUser(user_id string) ([]Case, error) {
 	}
 
 	return cases, nil
+}
+
+func CaseUpdateNumberFiles(case_id string) {
+
+	_, err := dynamo.UpdateItem(&dynamodb.UpdateItemInput{
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":val": {
+				N: aws.String("1"),
+			},
+		},
+		Key: map[string]*dynamodb.AttributeValue{
+			"_id": {
+				S: aws.String(case_id),
+			},
+		},
+		TableName:        &CasesTable,
+		UpdateExpression: aws.String("ADD number_files :val"),
+	})
+
+	if err != nil {
+		log.Printf("Error updating number of files: %v", err)
+	}
+
 }

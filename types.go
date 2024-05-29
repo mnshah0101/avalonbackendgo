@@ -21,15 +21,12 @@ type Case struct {
 	CaseTitle         string `json:"case_title"`
 	AttorneyFirstName string `json:"attorney_first_name"`
 	AttorneyLastName  string `json:"attorney_last_name"`
-	BucketName        string `json:"bucket_name"`
 	CaseInfo          string `json:"case_info"`
 	CaseType          string `json:"case_type"`
 	City              string `json:"city"`
 	Date              string `json:"date"`
 	JudgeName         string `json:"judge_name"`
 	NumberFiles       int    `json:"number_files"`
-	SeedDoc           string `json:"seed_doc"`
-	SeedText          string `json:"seed_text"`
 	State             string `json:"state"`
 	UserID            string `json:"user_id"`
 }

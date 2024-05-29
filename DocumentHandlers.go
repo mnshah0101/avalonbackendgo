@@ -5,17 +5,8 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 )
-
-func RemoveSpacesAndColons(input string) string {
-	input = strings.ReplaceAll(input, " ", "")
-	input = strings.ReplaceAll(input, ":", "")
-	input = strings.ReplaceAll(input, ".", "")
-	return input
-
-}
 
 func GetDocumentsByCaseHandler(w http.ResponseWriter, r *http.Request) {
 	// read the request body
@@ -371,8 +362,9 @@ func UploadDocumentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fileName := caseID + "/" + header.Filename
+	fileName := caseID + "/"
 
+	fileName = fileName + header.Filename
 	fileName = RemoveSpacesAndColons(fileName)
 
 	file_url, err := UploadFileToS3(fileName, fileContent)
@@ -444,7 +436,11 @@ func UploadDocumentsHandler(w http.ResponseWriter, r *http.Request) {
 
 		time_now := time.Now().Truncate(0).String()
 
-		fileName := caseID + "/" + time_now + header.Filename
+		fileName := caseID + "/" + time_now
+
+		fileName = RemovePeriods(fileName)
+
+		fileName = fileName + header.Filename
 
 		fileName = RemoveSpacesAndColons(fileName)
 
@@ -461,6 +457,9 @@ func UploadDocumentsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		uploadedFiles = append(uploadedFiles, file_url)
+
+		CaseUpdateNumberFiles(caseID)
+
 	}
 
 	response := SuccessResponse{
@@ -475,7 +474,11 @@ func UploadDocumentsHandler(w http.ResponseWriter, r *http.Request) {
 
 func CreateDocumentsHandler(w http.ResponseWriter, r *http.Request) {
 
+	log.Println("Creating documents")
+
 	caseID := r.FormValue("case_id")
+
+	log.Println("Case ID: ", caseID)
 
 	if caseID == "" {
 		response := ErrorResponse{
@@ -488,7 +491,11 @@ func CreateDocumentsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	files := r.MultipartForm.File["files"]
+	log.Println("Case ID: ", caseID)
+
+	files := r.MultipartForm.File["files[]"]
+
+	log.Println("Number of files: ", len(files))
 
 	var documents []Document
 
@@ -507,6 +514,9 @@ func CreateDocumentsHandler(w http.ResponseWriter, r *http.Request) {
 		defer file.Close()
 
 		// Read file content
+
+		log.Println("Reading file content")
+
 		fileContent, err := io.ReadAll(file)
 		if err != nil {
 			response := ErrorResponse{
@@ -520,11 +530,19 @@ func CreateDocumentsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		time_now := time.Now().Truncate(0).String()
 
-		fileName := caseID + "/" + time_now + header.Filename
+		fileName := caseID + "/" + time_now
+
+		fileName = RemovePeriods(fileName)
+
+		fileName = fileName + header.Filename
 
 		fileName = RemoveSpacesAndColons(fileName)
 
+		log.Println("Uploading file to S3")
+
 		file_url, err := UploadFileToS3(fileName, fileContent)
+
+		CaseUpdateNumberFiles(caseID)
 
 		if err != nil {
 			response := ErrorResponse{
@@ -541,7 +559,7 @@ func CreateDocumentsHandler(w http.ResponseWriter, r *http.Request) {
 			ID:        generateRandomString(16),
 			FileName:  fileName,
 			CaseID:    caseID,
-			Date:      time_now,
+			Date:      time.Now().Truncate(0).String(),
 			FileURL:   file_url,
 			Relevancy: 0.0,
 			Stored:    false,

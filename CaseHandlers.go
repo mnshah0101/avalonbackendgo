@@ -9,6 +9,10 @@ import (
 )
 
 func CreateCaseHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
 	var myCase Case
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -37,7 +41,7 @@ func CreateCaseHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Case: %+v", myCase)
 
 	// check if no fields are blank
-	if myCase.CaseTitle == "" || myCase.AttorneyFirstName == "" || myCase.AttorneyLastName == "" || myCase.BucketName == "" || myCase.CaseInfo == "" || myCase.CaseType == "" || myCase.City == "" || myCase.Date == "" || myCase.JudgeName == "" || myCase.SeedDoc == "" || myCase.SeedText == "" || myCase.State == "" || myCase.UserID == "" {
+	if myCase.CaseTitle == "" || myCase.AttorneyFirstName == "" || myCase.AttorneyLastName == "" || myCase.CaseInfo == "" || myCase.CaseType == "" || myCase.City == "" || myCase.Date == "" || myCase.JudgeName == "" || myCase.State == "" || myCase.UserID == "" {
 		response := ErrorResponse{
 			Message: "All fields must be filled out",
 			Status:  http.StatusBadRequest,
@@ -47,6 +51,8 @@ func CreateCaseHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(response)
 		return
 	}
+
+	log.Printf("All fields filled out")
 
 	var return_case Case
 	return_case, err = CreateCase(myCase)
@@ -62,6 +68,8 @@ func CreateCaseHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("Case created successfully")
+
 	// create chat object for case
 	err = CreateChat(return_case.ID, return_case.UserID)
 	if err != nil {
@@ -75,6 +83,8 @@ func CreateCaseHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(response)
 		return
 	}
+
+	log.Printf("Chat created successfully")
 
 	// return case
 	response := SuccessResponse{
@@ -156,6 +166,13 @@ func GetCaseByIDHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetCaseByUserHandler(w http.ResponseWriter, r *http.Request) {
+
+	// Handle preflight requests
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		response := ErrorResponse{
@@ -231,7 +248,6 @@ func GetCaseByUserHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
-
 }
 
 func DeleteCaseByIDHandler(w http.ResponseWriter, r *http.Request) {

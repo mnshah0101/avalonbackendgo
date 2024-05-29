@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rand"
 	"math/big"
+	"strings"
 )
 
 func generateRandomString(length int) string {
@@ -16,4 +17,18 @@ func generateRandomString(length int) string {
 		b[i] = charset[num.Int64()]
 	}
 	return string(b)
+}
+
+func RemoveSpacesAndColons(input string) string {
+	input = strings.ReplaceAll(input, " ", "")
+	input = strings.ReplaceAll(input, ":", "")
+	return input
+
+}
+
+func RemovePeriods(input string) string {
+	input = strings.ReplaceAll(input, ".", "")
+	input = strings.ReplaceAll(input, " ", "")
+
+	return input
 }

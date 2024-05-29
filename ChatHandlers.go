@@ -71,6 +71,9 @@ func GetChatByCaseIDHandler(w http.ResponseWriter, r *http.Request) {
 
 func AddMessageToChatHandler(w http.ResponseWriter, r *http.Request) {
 	// read the request body
+
+	log.Printf("Adding message to chat")
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		response := ErrorResponse{
@@ -100,6 +103,8 @@ func AddMessageToChatHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(response)
 		return
 	}
+
+	log.Printf("Unmarshalled request body %v", addMessageToChatRequest)
 
 	//make sure fields are not empty
 	if addMessageToChatRequest.CaseID == "" || addMessageToChatRequest.Message.Text == "" || addMessageToChatRequest.Message.Sender == "" || addMessageToChatRequest.Message.Timestamp == "" {

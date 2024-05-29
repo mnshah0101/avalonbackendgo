@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"net/http"
+
+	"github.com/rs/cors"
 )
 
 var (
@@ -49,7 +51,9 @@ func main() {
 	router.HandleFunc("POST /getCaseChat", GetChatByCaseIDHandler) // the case_id and chat id are the same
 	router.HandleFunc("POST /addMessage", AddMessageToChatHandler)
 
-	log.Println("Server started on :3000")
-	log.Fatal(http.ListenAndServe(":3000", router))
+	log.Println("Server started on :8080")
+	handler := cors.Default().Handler(router)
+
+	log.Fatal(http.ListenAndServe(":8080", handler))
 
 }
