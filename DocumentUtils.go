@@ -188,3 +188,54 @@ func UploadDocumentDynamo(document Document) error {
 
 	return err
 }
+
+func GetDocumentIDFromFileURL(fileURL string) (string, error) {
+	filt := expression.Name("file_url").Equal(expression.Value(fileURL))
+	expr, err := expression.NewBuilder().WithFilter(filt).Build()
+	if err != nil {
+		return "", err
+	}
+
+	result, err := dynamo.Scan(&dynamodb.ScanInput{
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+		FilterExpression:          expr.Filter(),
+		TableName:                 &DocumentsTable,
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	if len(result.Items) == 0 {
+		return "", nil
+	}
+
+	if len(result.Items) > 1 {
+		return "", err
+	}
+
+	return *result.Items[0]["_id"].S, nil
+}
+
+func UpdateDocumentRelevancy(documentID string, relevancy float64) error {
+	input := &dynamodb.UpdateItemInput{
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":r": {
+				N: aws.String(strconv.FormatFloat(relevancy, 'f', -1, 64)),
+			},
+		},
+		Key: map[string]*dynamodb.AttributeValue{
+			"_id": {
+				S: aws.String(documentID),
+			},
+		},
+		ReturnValues:     aws.String("UPDATED_NEW"),
+		TableName:        &DocumentsTable,
+		UpdateExpression: aws.String("SET relevancy = :r"),
+	}
+
+	_, err := dynamo.UpdateItem(input)
+
+	return err
+}

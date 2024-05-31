@@ -603,3 +603,148 @@ func CreateDocumentsHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
+
+func GetDocumentByIdByFileUrlHandler(w http.ResponseWriter, r *http.Request) {
+	// read the document url json from the request body
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		response := ErrorResponse{
+			Message: "Failed to get document by file url",
+			Status:  http.StatusInternalServerError,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// unmarshal the request body
+	var getDocByFileUrlRequest struct {
+		FileURL string `json:"file_url"`
+	}
+
+	if err := json.Unmarshal(body, &getDocByFileUrlRequest); err != nil {
+		log.Printf("Error unmarshalling request body: %v", err)
+		response := ErrorResponse{
+			Message: "Failed to read request body",
+			Status:  http.StatusBadRequest,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	document_id, err := GetDocumentIDFromFileURL(getDocByFileUrlRequest.FileURL)
+	if err != nil {
+		response := ErrorResponse{
+			Message: "Failed to get document by file url",
+			Status:  http.StatusInternalServerError,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	if document_id == "" {
+		response := ErrorResponse{
+			Message: "Document not found",
+			Status:  http.StatusNotFound,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	response := SuccessResponse{
+		Message: "Document ID retrieved successfully",
+		Status:  http.StatusOK,
+		Object:  document_id,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+
+}
+
+func UpdateRelevancyByFileUrl(w http.ResponseWriter, r *http.Request) {
+	// read the request body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		response := ErrorResponse{
+			Message: "Failed to update relevancy",
+			Status:  http.StatusInternalServerError,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// unmarshal the request body
+	var updateRelevancyRequest struct {
+		FileURL   string  `json:"file_url"`
+		Relevancy float64 `json:"relevancy"`
+	}
+
+	if err := json.Unmarshal(body, &updateRelevancyRequest); err != nil {
+		log.Printf("Error unmarshalling request body: %v", err)
+		response := ErrorResponse{
+			Message: "Failed to read request body",
+			Status:  http.StatusBadRequest,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// get document by file url
+	document_id, err := GetDocumentIDFromFileURL(updateRelevancyRequest.FileURL)
+	if err != nil {
+		response := ErrorResponse{
+			Message: "Failed to get document by file url",
+			Status:  http.StatusInternalServerError,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	if document_id == "" {
+		response := ErrorResponse{
+			Message: "Document not found",
+			Status:  http.StatusNotFound,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// update relevancy by document id
+	err = UpdateDocumentRelevancy(document_id, updateRelevancyRequest.Relevancy)
+	if err != nil {
+		response := ErrorResponse{
+			Message: "Failed to update relevancy",
+			Status:  http.StatusInternalServerError,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	response := SuccessResponse{
+		Message: "Relevancy updated successfully",
+		Status:  http.StatusOK,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}

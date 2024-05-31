@@ -47,6 +47,8 @@ func main() {
 	router.HandleFunc("POST /deleteDocumentById", DeleteDocumentByIDHandler)
 	router.HandleFunc("POST /deleteCaseDocuments", DeleteDocumentsByCaseHandler)
 	router.HandleFunc("POST /createDocuments", CreateDocumentsHandler)
+	router.HandleFunc("POST /getDocumentIdByUrl", GetDocumentByIdByFileUrlHandler)
+	router.HandleFunc("POST /updateRelevancyByFileUrl", UpdateRelevancyByFileUrl)
 
 	router.HandleFunc("POST /getCaseChat", GetChatByCaseIDHandler) // the case_id and chat id are the same
 	router.HandleFunc("POST /addMessage", AddMessageToChatHandler)
