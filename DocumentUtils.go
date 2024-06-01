@@ -41,6 +41,11 @@ func GetDocumentsByCaseId(caseID string) ([]Document, error) {
 
 	for _, i := range result.Items {
 		relevancy, err := strconv.ParseFloat(*i["relevancy"].N, 64)
+
+		if err != nil {
+			return []Document{}, err
+		}
+
 		stored, err := strconv.ParseBool(strconv.FormatBool(*i["stored"].BOOL))
 		if err != nil {
 			return []Document{}, err
@@ -91,6 +96,11 @@ func GetDocumentById(documentID string) (Document, error) {
 	}
 
 	relevancy, err := strconv.ParseFloat(*result.Items[0]["relevancy"].N, 64)
+
+	if err != nil {
+		return Document{}, err
+	}
+
 	stored, err := strconv.ParseBool(strconv.FormatBool(*result.Items[0]["stored"].BOOL))
 	if err != nil {
 		return Document{}, err

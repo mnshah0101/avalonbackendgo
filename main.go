@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/joho/godotenv"
 	"github.com/rs/cors"
 )
 
@@ -13,10 +14,14 @@ var (
 	DocumentsTable = "AvalonDocuments"
 	ChatsTable     = "AvalonChats"
 	RegionName     = "us-east-1"
-	Bucket         = "avaloncasesbucket"
+	Bucket         = "avalondocumentbucket"
 )
 
 func init() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Printf("Error loading .env file")
+	}
 	dynamo = InitDynamoDBTClient()
 	s3Client = InitS3Client()
 }
